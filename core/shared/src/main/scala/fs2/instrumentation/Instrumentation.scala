@@ -36,23 +36,32 @@ object Instrumentation {
   def getMeter[F[_]: MeterProvider]: F[Meter[F]] =
     MeterProvider[F].get(MeterNamespace)
 
-  def registerSocket[F[_]: Sync: Meter](socketId: String, socket: Socket[F], extraAttributes: Attributes): Resource[F, Unit] = {
+  def registerSocket[F[_]: Sync: Meter](
+      socketId: String,
+      socket: Socket[F],
+      extraAttributes: Attributes
+  ): Resource[F, Unit] = {
     val prefix = NetworkNamespace + ".socket"
     Meter[F].batchCallback.of(
-      Meter[F].observableCounter[Long](s"$prefix.rx")
+      Meter[F]
+        .observableCounter[Long](s"$prefix.rx")
         .withDescription("Total number of bytes read from the network through this socket.")
         .createObserver,
-      Meter[F].observableCounter[Long](s"$prefix.tx")
+      Meter[F]
+        .observableCounter[Long](s"$prefix.tx")
         .withDescription("Total number of bytes written to the network through this socket.")
         .createObserver,
-      Meter[F].observableCounter[Long](s"$prefix.incomplete_writes")
+      Meter[F]
+        .observableCounter[Long](s"$prefix.incomplete_writes")
         .withDescription("Number of times a write request consumed only part of the write buffer.")
-        .createObserver,
+        .createObserver
     ) { (rx, tx, incompleteWrites) =>
       val m = socket.metrics
       val attributes = Attributes(Attribute("socket.id", socketId)) ++ extraAttributes
       for {
-        snapshot <- Sync[F].delay((m.totalBytesRead(), m.totalBytesWritten(), m.incompleteWriteCount()))
+        snapshot <- Sync[F].delay(
+          (m.totalBytesRead(), m.totalBytesWritten(), m.incompleteWriteCount())
+        )
         _ <- rx.record(snapshot._1, attributes)
         _ <- tx.record(snapshot._2, attributes)
         _ <- incompleteWrites.record(snapshot._3, attributes)

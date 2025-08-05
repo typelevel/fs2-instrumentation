@@ -48,7 +48,9 @@ class InstrumentationSuite extends CatsEffectSuite {
           }
 
           Stream.eval(client).concurrently(echoServer).compile.onlyOrError.map { collected =>
-            val valuesByName = collected.map(md => md.name -> md.data.points.head.asInstanceOf[PointData.LongNumber].value).toMap
+            val valuesByName = collected
+              .map(md => md.name -> md.data.points.head.asInstanceOf[PointData.LongNumber].value)
+              .toMap
             assertEquals(valuesByName.get("fs2.io.net.socket.tx"), Option(13L))
             assertEquals(valuesByName.get("fs2.io.net.socket.rx"), Option(13L))
             assertEquals(valuesByName.get("fs2.io.net.socket.incomplete_writes"), Option(0L))
